@@ -10,6 +10,6 @@ ModuleClosedNodes0=1,2,6
 ModuleClosedNodes1=
 ModuleClosedNodes2=
 ModuleClosedNodes3=1
-NavigationStack=ASViewPager,setScroll,479,5,Visual Designer,frm_main.bal,-100,6,B4XMainPage,ASViewPager1_TouchBegin,89,0,B4XMainPage,ASViewPager1_LazyLoadingAddContent,89,0,B4XMainPage,Label2_Click,84,0,B4XMainPage,ASViewPager1_TouchEnd,106,0,B4XMainPage,Class_Globals,5,4,B4XMainPage,B4XPage_Created,36,6,ASViewPager,GetPanel,652,1,ASViewPager,GetValue,644,0,ASViewPager,Class_Globals,155,0
+NavigationStack=B4XMainPage,B4XPage_Created,30,6,ASViewPager,TouchBeginEvent,1123,0,ASViewPager,ff,784,0,ASViewPager,CheckCarousel,897,0,ASViewPager,xclv_main_ScrollChanged,1073,2,ASViewPager,xclv_main_VisibleRangeChanged,1073,0,ASViewPager,xpnl_PageArea2_Touch,921,6,ASViewPager,HandleTouch,825,6,ASViewPager,Class_Globals,215,0
 SelectedBuild=0
 VisibleModules=2,1

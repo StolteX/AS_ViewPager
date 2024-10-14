@@ -10,7 +10,6 @@ Sub Class_Globals
 	Private Root As B4XView
 	Private xui As XUI
 	Private ASViewPager1 As ASViewPager
-	
 End Sub
 
 Public Sub Initialize
@@ -27,19 +26,22 @@ Private Sub B4XPage_Created (Root1 As B4XView)
 	B4XPage_Resize(Width,Height)
 	'ASViewPager1.Base_Resize(Width,Height)
 	#End If
-
-	For i = 0 To 5
+	
+	For i = 0 To 20
 		Dim tmp_xpnl As B4XView = xui.CreatePanel("tmp_xpnl")
 		tmp_xpnl.Color = xui.Color_ARGB(255,Rnd(1,255),Rnd(1,255),Rnd(1,255))
-		tmp_xpnl.SetLayoutAnimated(0,0,0,ASViewPager1.Base.Width*2,ASViewPager1.Base.Height)
+		tmp_xpnl.SetLayoutAnimated(0,0,0,ASViewPager1.Base.Width,ASViewPager1.Base.Height)
 		
 		ASViewPager1.AddPage(tmp_xpnl,"Test" & i)
 	Next
 	B4XPages.SetTitle(Me,"ASViewPager Example | Page " & 1 & "/" & ASViewPager1.Size)
+	Sleep(0)
+	ASViewPager1.CurrentIndex = 10
 	
-	'Sleep(0)
-	'ASViewPager1.CurrentIndex = 100
-
+'	Sleep(2000)
+'	Log("jetzt")
+'	ASViewPager1.AllowNext(False)
+'	ASViewPager1.AllowBack(True)
 End Sub
 
 Private Sub B4XPage_Resize (Width As Int, Height As Int)
@@ -48,10 +50,37 @@ End Sub
 
 Sub ASViewPager1_PageChanged (index As Int)
 	'Log("PageChanged: " & index)
-	B4XPages.SetTitle(Me,"ASViewPager Example | Page " & (index +1) & "/" & ASViewPager1.Size)
+	'B4XPages.SetTitle(Me,"ASViewPager Example | Page " & (index +1) & "/" & ASViewPager1.Size)
+End Sub
+
+Private Sub ASViewPager1_PageChanged2(NewIndex As Int, OldIndex As Int)
+'	If NewIndex <= OldIndex Then
+'		If NewIndex = 2 Then
+'			Log("zurück")
+'			Dim tmp_xpnl As B4XView = xui.CreatePanel("tmp_xpnl")
+'			tmp_xpnl.Color = xui.Color_ARGB(255,Rnd(1,255),Rnd(1,255),Rnd(1,255))
+'			tmp_xpnl.SetLayoutAnimated(0,0,0,ASViewPager1.Base.Width,ASViewPager1.Base.Height)
+'		
+'			ASViewPager1.AddPageAt(0,tmp_xpnl,"")
+'		End If
+'	Else
+'		If NewIndex = ASViewPager1.Size -2 Then
+'			Log("vor")
+'			Dim tmp_xpnl As B4XView = xui.CreatePanel("tmp_xpnl")
+'			tmp_xpnl.Color = xui.Color_ARGB(255,Rnd(1,255),Rnd(1,255),Rnd(1,255))
+'			tmp_xpnl.SetLayoutAnimated(0,0,0,ASViewPager1.Base.Width,ASViewPager1.Base.Height)
+'		
+'			ASViewPager1.AddPage(tmp_xpnl,"")
+'		End If
+'	End If
+'	Sleep(0)
+'	B4XPages.SetTitle(Me,"ASViewPager Example | Page " & (NewIndex +1) & "/" & ASViewPager1.Size)
 End Sub
 
 Private Sub ASViewPager1_PageChange(Index As Int)
+	B4XPages.SetTitle(Me,"ASViewPager Example | Page " & (Index +1) & "/" & ASViewPager1.Size)
+	If Index = 15 Then ASViewPager1.AllowNext(False)
+	
 	'Log("PageChange: " & Index)
 End Sub
 
@@ -93,9 +122,9 @@ End Sub
 
 
 Private Sub ASViewPager1_TouchBegin
-	Log("ASViewPager1_TouchBegin")
+	'Log("ASViewPager1_TouchBegin")
 End Sub
 
 Private Sub ASViewPager1_TouchEnd
-	Log("ASViewPager1_TouchEnd")
+	'Log("ASViewPager1_TouchEnd")
 End Sub

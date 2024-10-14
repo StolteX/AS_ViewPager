@@ -4,8 +4,8 @@ File2=frm_test.bal
 FileGroup1=Default Group
 FileGroup2=Default Group
 Group=Default Group
-Library1=core
-Library2=b4xpages
+Library1=b4xpages
+Library2=core
 Library3=reflection
 Library4=xcustomlistview
 Library5=xui
@@ -16,7 +16,7 @@ Module3=Starter
 NumberOfFiles=2
 NumberOfLibraries=5
 NumberOfModules=3
-Version=12.2
+Version=12.8
 @EndOfDesignText@
 #Region  Project Attributes 
 	#ApplicationLabel: AS View Pager Example

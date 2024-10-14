@@ -7,6 +7,6 @@ ModuleBreakpoints2=
 ModuleClosedNodes0=1,4
 ModuleClosedNodes1=
 ModuleClosedNodes2=1
-NavigationStack=ASViewPager,IniPager,283,0,ASViewPager,DesignerCreateView,204,0,B4XMainPage,B4XPage_Resize,43,0,ASViewPager,AddPage,415,0,ASViewPager,CheckLoadingPanelVisiblity,396,0,B4XMainPage,B4XPage_Created,26,0,B4XMainPage,Initialize,13,0,ASViewPager,LoadingPanelHandling,390,2,ASViewPager,Base_Resize,325,0
+NavigationStack=ASViewPager,LazyLoadingAddContent,1160,0,ASViewPager,PageChangedEvent,1162,2,ASViewPager,ResetLazyLoadingPanels,777,0,ASViewPager,Commit,574,0,ASViewPager,Class_Globals,213,0,ASViewPager,NextPage,536,0,ASViewPager,PreviousPage,518,0,ASViewPager,AllowNext,581,3,ASViewPager,AllowBack,590,1,B4XMainPage,B4XPage_Created,36,3
 SelectedBuild=0
 VisibleModules=2,1

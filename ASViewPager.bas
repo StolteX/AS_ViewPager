@@ -128,6 +128,35 @@ V2.00
 	-In B4J, the jPager is now used instead of the xCustomListView
 		-Better performance
 		-No more unwanted scrolling with the mouse
+V2.01
+	-BugFixes and Improvements
+	-Add Event PageChanged2
+V2.02
+	-Add set LoadingPanelHideDuration - The duration of how quickly the loading panel is hidden
+		-Default: 500
+V2.03
+	-B4I BugFix - Prevents vertical scrolling when in horizontal mode and vice versa
+V2.04
+	-B4I BugFix - The safe area is no longer observed
+		-Fixes unwanted behavior when the viewpager is in the safe area
+V2.05
+	-BugFix - by setting the set CurrentIndex or set CurrentIndex2, the PageChange and PageChanged event have been triggered multiple times
+V2.06
+	-B4A BugFix
+V2.07
+	-B4I BugFix
+V2.08
+	-B4I - PageChange event is now triggered as soon as you lift your finger when changing pages, just like in B4A
+	-Add AllowNext
+		-Default: True
+		-If False: Prevents the user from moving to the next page
+			-The NextPage function will not work
+			-The CurrentIndex property can be used without restrictions
+	-Add AllowBack
+		-Default: True
+		-If False: Prevents the user from moving to the previous page
+			-The PreviousPage function will not work
+			-The CurrentIndex property can be used without restrictions
 		
 -Add SwipeOnEndOfPage Event - triggers when the user scrolls even though he is already at the end of the list. Or if the user is on the 1st page and scrolls to the wrong direction
 #End If
@@ -139,8 +168,9 @@ V2.00
 #DesignerProperty: Key: LoadingPanelColor, DisplayName: Loading Panel Color, FieldType: Color, DefaultValue: 0xFF000000, Description: The color of the Loading panel if Base_Resize is executed
 #DesignerProperty: Key: BackGestureGap, DisplayName: BackGestureGap, FieldType: Boolean, DefaultValue: False, Description: Only for B4I. If you use the ViewPager on a 2nd page and still want to close the page with the swipe gesture then set the checkbox to true
 
-#Event: PageChange(Index as int)
-#Event: PageChanged(Index as int)
+#Event: PageChange(Index As Int)
+#Event: PageChanged(Index As Int)
+#Event: PageChanged2(NewIndex As Int, OldIndex As Int)
 #Event: ScrollChanged(Offset As Int)
 #Event: ReachEnd
 #Event: TouchBegin
@@ -167,7 +197,7 @@ Sub Class_Globals
 	
 	'Variables etc...
 	Private m_CurrentIndex As Int = 0'ignore
-	Private lazyloading_index As Int = -1'ignore
+	'Private lazyloading_index As Int = -1'ignore
 	#If B4A or B4I
 	Private g_x,g_y,g_dv,g_ad As Float
 	Private g_ms As Long
@@ -176,10 +206,10 @@ Sub Class_Globals
 	#If B4I 
 	Private xpnl_BackGestureGap As B4XView
 	Private nome As NativeObject=Me
-	'Private tmp As GestureRecognizer 
-	Private m_Ignore As Boolean = False
+	'Private tmp As GestureRecognizer
 	Private mView As View
 	#end if
+	Private m_Ignore As Boolean = False'Ignore
 	Private g_ignorepagechangedevent As Boolean = False
 	Private g_ignorepagechangeevent As Boolean = False
 	Private m_Orientation As String
@@ -187,19 +217,21 @@ Sub Class_Globals
 	Private m_LazyLoading As Boolean
 	Private m_LazyLoadingExtraSize As Int
 	Private m_LoadingPanelColor As Int
-	Private m_BackGestureGap As Boolean
+	Private m_BackGestureGap As Boolean 'Ignore
+	Private m_AllowNext As Boolean = True
+	Private m_AllowBack As Boolean = True
+	Private m_MaxOffset As Int = 0'Ignore
 	
-	Private ismoving As Boolean = False
+	Private ismoving As Boolean = False'Ignore
 	Private g_isScrollEnabled As Boolean = True
-	Private m_IgnoreLazyLoading As Boolean = False
+	Private m_IgnoreLazyLoading As Boolean = False'Ignore
 
 	Public Tag As Object
 	Private isLazyLoadingReady As Boolean = False
 	Private isHidding As Boolean = False
 	'Private SwipeOnEndOfPage_OnlyOnce As Boolean = True
-	#If B4A
-	Public OversizeMode As Boolean = False
-	#End If
+	Private OldIndex As Int = 0
+	Private m_LoadingPanelHideDuration As Int = 500
 End Sub
 
 Public Sub Initialize (Callback As Object, EventName As String)
@@ -250,6 +282,11 @@ Public Sub DesignerCreateView (Base As Object, Lbl As Label, Props As Map)
 	If m_BackGestureGap Then mBase.AddView(xpnl_BackGestureGap,0,0,30dip,mBase.Height)
 	#End If
 	
+'	Dim xpnl_LeftTopGap As B4XView = xui.CreatePanel("")
+'	xpnl_LeftTopGap.SetLayoutAnimated(0dip,0,0,200dip,mBase.Height)
+'	xpnl_LeftTopGap.Color = xui.Color_Red
+'	AddPage(xpnl_LeftTopGap,"Gap")
+	
 End Sub
 
 #If B4A or B4I
@@ -271,8 +308,13 @@ Private Sub ini_xclv
 	Private objPages As Reflector
 	objPages.Target = xclv_main.sv
 	objPages.SetOnTouchListener("xpnl_PageArea2_Touch")
+	xclv_main.AsView.SetLayoutAnimated(0,xclv_main.AsView.Left,xclv_main.AsView.Top,mBase.Width,mBase.Height)
+	xclv_main.Base_Resize(mBase.Width,mBase.Height)
 	#Else IF B4I	
-	
+
+	'xclv_main.sv.As(NativeObject).SetField("directionalLockEnabled", True)
+	xclv_main.sv.As(NativeObject).SetField("contentInsetAdjustmentBehavior", 2) 'Never
+
 	mView=xclv_main.GetBase
 	'nome.RunMethod("grLongPress::::",Array(0,1,0,mView))
 	nome.RunMethod("grPan:::",Array(mView,1,1))
@@ -318,6 +360,7 @@ Public Sub Base_Resize (Width As Double, Height As Double)
 	#IF B4I
 	m_Ignore = True
 	#End if
+	
 	#If B4J
 	xpnl_Loading.BringToFront
 	xpnl_Loading.SetLayoutAnimated(0,0,0,Width + 1000dip,Height + 1000dip)
@@ -362,30 +405,26 @@ Public Sub Base_Resize (Width As Double, Height As Double)
 	mBase.Width = Width
 	mBase.Height = Height
 	Sleep(0)
-	xclv_main.AsView.SetLayoutAnimated(0,xclv_main.AsView.Left,xclv_main.AsView.Top,mBase.Width,mBase.Height)
-	xclv_main.Base_Resize(mBase.Width,mBase.Height)
+	xclv_main.AsView.SetLayoutAnimated(0,xclv_main.AsView.Left,xclv_main.AsView.Top,Width,Height)
+	xclv_main.Base_Resize(Width,Height)
 	
 	'If change_widthorheight = True Then
-	#If B4A
-	If OversizeMode = False Then
-		#End If
-		For i = 0 To xclv_main.Size -1
-			If m_Orientation = "Horizontal" Then
-				xclv_main.ResizeItem(i,mBase.Width)
-			Else
-				xclv_main.ResizeItem(i,mBase.Height)
-			End If
-		Next
-	#If B4A
-	End If
-	#End If
+	For i = 0 To xclv_main.Size -1
+		If m_Orientation = "Horizontal" Then
+			xclv_main.ResizeItem(i,mBase.Width)
+		Else
+			xclv_main.ResizeItem(i,mBase.Height)
+		End If
+	Next
+
 	'End If
 	'Sleep(0)
 	If xclv_main.Size > 0 Then xclv_main.JumpToItem(m_CurrentIndex)
 	Sleep(250)
 	LoadingPanelHandling
 	#End If
-		#IF B4I
+	
+	#IF B4I
 	m_Ignore = False
 	#End if
 End Sub
@@ -394,8 +433,8 @@ Private Sub LoadingPanelHandling
 	If isHidding = False Then
 		isHidding = True
 		'xpnl_Loading.Visible = False
-		xpnl_Loading.SetVisibleAnimated(500,False)
-		Sleep(600)
+		xpnl_Loading.SetVisibleAnimated(m_LoadingPanelHideDuration,False)
+		Sleep(m_LoadingPanelHideDuration + 50)
 		isHidding = False
 	End If
 	Sleep(0)
@@ -407,11 +446,15 @@ Private Sub CheckLoadingPanelVisiblity
 	Sleep(250)
 	If xpnl_Loading.Visible = True And isHidding = False Then 
 		isHidding = True
-		xpnl_Loading.SetVisibleAnimated(500,False)
-		Sleep(600)
+		xpnl_Loading.SetVisibleAnimated(m_LoadingPanelHideDuration,False)
+		Sleep(m_LoadingPanelHideDuration + 50)
 		isHidding = False
 	End If
 	
+End Sub
+
+Public Sub setLoadingPanelHideDuration(Duration As Int)
+	m_LoadingPanelHideDuration = Duration
 End Sub
 
 Public Sub getBase As B4XView
@@ -419,6 +462,7 @@ Public Sub getBase As B4XView
 End Sub
 
 Public Sub AddPage(LayoutPanel As B4XView,Value As Object)	
+	
 	#If B4J
 	jp_Main.AddPage(LayoutPanel,Value)
 	#Else
@@ -430,20 +474,9 @@ End Sub
 'Adds an page at a special position
 Public Sub AddPageAt(index As Int,LayoutPanel As B4XView,Value As Object)
 
-#If B4A or B4I
 	If index <= m_CurrentIndex Then
 		m_CurrentIndex = m_CurrentIndex +1
 	End If
-	#End If
-	#If B4I
-If m_Orientation = "Horizontal" Then
-		xclv_main.sv.ScrollViewOffsetX = xclv_main.sv.ScrollViewOffsetX + mBase.Width
-	else If m_Orientation = "Vertical" Then
-		xclv_main.sv.ScrollViewOffsetY = xclv_main.sv.ScrollViewOffsetY + mBase.Height
-	End If
-	#Else If B4A
-	xclv_main.JumpToItem(m_CurrentIndex)
-	#End If
 	
 	#If B4J
 	jp_Main.AddPageAt(index,LayoutPanel,Value)
@@ -451,6 +484,17 @@ If m_Orientation = "Horizontal" Then
 		xclv_main.InsertAt(index,LayoutPanel,Value)
 	#End If
 
+	#If B4I
+	If m_Orientation = "Horizontal" Then
+		xclv_main.sv.ScrollViewOffsetX = xclv_main.sv.ScrollViewOffsetX + mBase.Width
+	else If m_Orientation = "Vertical" Then
+		xclv_main.sv.ScrollViewOffsetY = xclv_main.sv.ScrollViewOffsetY + mBase.Height
+	End If
+	#Else If B4A
+	xclv_main.JumpToItem(m_CurrentIndex)
+	#Else If B4J
+	jp_Main.Index = m_CurrentIndex
+	#End If
 
 End Sub
 
@@ -468,6 +512,7 @@ Public Sub RemovePage(index As Int)
 End Sub
 
 Public Sub PreviousPage	
+	If m_AllowBack = False Then Return
 		#If B4J
 		jp_Main.PreviousPage
 		#Else
@@ -482,6 +527,7 @@ Public Sub PreviousPage
 End Sub
 'jump to previous page
 Public Sub PreviousPage2
+	If m_AllowBack = False Then Return
 			#If B4J
 		jp_Main.PreviousPage
 		#Else
@@ -495,11 +541,12 @@ Public Sub PreviousPage2
 End Sub
 
 Public Sub NextPage
+	If m_AllowNext = False Then Return
 			#If B4J
 		jp_Main.NextPage
 		#ELse
 	If (m_CurrentIndex +1) < xclv_main.Size Then
-			xclv_main.ScrollToItem(m_CurrentIndex +1)
+		xclv_main.ScrollToItem(m_CurrentIndex +1)
 		PageChangedEvent(m_CurrentIndex +1,True)
 	Else If m_Carousel = True Then
 		CheckCarousel
@@ -508,6 +555,7 @@ Public Sub NextPage
 End Sub
 'Jump to next page
 Public Sub NextPage2
+	If m_AllowNext = False Then Return
 	#If B4J
 	jp_Main.NextPage
 	#Else
@@ -531,6 +579,30 @@ Public Sub Commit
 	
 End Sub
 
+'If False: Prevents the user from moving to the next page
+'	-The NextPage function will not work
+'	-The CurrentIndex property can be used without restrictions
+Public Sub AllowNext(Allow As Boolean)
+	m_AllowNext = Allow
+	#If B4I
+	setScroll(m_AllowBack Or m_AllowNext)
+	#Else If B4J
+	jp_Main.AllowNext(Allow)
+	#End If
+End Sub
+
+'If False: Prevents the user from moving to the previous page
+'	-The PreviousPage function will not work
+'	-The CurrentIndex property can be used without restrictions
+Public Sub AllowBack(Allow As Boolean)
+	m_AllowBack = Allow
+		#If B4I
+	setScroll(m_AllowBack Or m_AllowNext)
+		#Else If B4J
+	jp_Main.AllowBack(Allow)
+	#End If
+End Sub
+
 #Region Properties
 'The color of the Loading panel if Base_Resize is executed
 Public Sub setLoadingPanelColor(Color As Int)
@@ -542,8 +614,22 @@ Public Sub getLoadingPanelColor As Int
 	Return m_LoadingPanelColor
 End Sub
 
+Public Sub setLazyLoading(Enabled As Boolean)
+	m_LazyLoading = Enabled
+	#If B4J
+	jp_Main.LazyLoading = Enabled
+	#End If
+End Sub
+
+Public Sub getLazyLoading As Boolean
+	Return m_LazyLoading
+End Sub
+
 Public Sub setLazyLoadingExtraSize(ExtraSize As Int)
 	m_LazyLoadingExtraSize = ExtraSize
+	#If B4J
+	jp_Main.LazyLoadingExtraSize = ExtraSize
+	#End If
 End Sub
 
 Public Sub getLazyLoadingExtraSize As Int
@@ -618,8 +704,11 @@ Public Sub setCurrentIndex(index As Int)
 	#If B4J
 	jp_Main.Index = index
 	#Else
-		xclv_main.ScrollToItem(index)
 	PageChangedEvent(index,True)
+	m_Ignore = True
+	xclv_main.ScrollToItem(index)
+	Sleep(250)
+	m_Ignore = False
 	#End If
 End Sub
 'sets the current index - jumps to the item
@@ -627,8 +716,11 @@ Public Sub setCurrentIndex2(index As Int)
 		#If B4J
 	jp_Main.Index = index
 	#Else
-	xclv_main.JumpToItem(index)
+	m_Ignore = True
 	PageChangedEvent(index,False)
+	xclv_main.JumpToItem(index)
+	Sleep(250)
+	m_Ignore = False
 	#End If
 End Sub
 
@@ -713,9 +805,9 @@ Private Sub ff(x As Float,y As Float)
 	g_x=X
 	g_y=Y
 	If m_Orientation = "Horizontal" Then
-	g_dv = (xclv_main.GetBase.Width)/2
+	g_dv = (mBase.Width)/2
 	Else
-	g_dv = (xclv_main.GetBase.Height)/2
+	g_dv = (mBase.Height)/2
 	End If
 	g_ad = 0
 End Sub
@@ -725,6 +817,7 @@ Private Sub HandleTouch(Action As Int,x As Float,y As Float) As Boolean
 Private Sub HandleTouch(Action As Int,x As Float,y As Float) As ResumableSub'ignore
 	'Sleep(0)
 #End If
+
 	Select Action
 		Case 2
 			TouchBeginEvent
@@ -735,107 +828,72 @@ Private Sub HandleTouch(Action As Int,x As Float,y As Float) As ResumableSub'ign
 			Else
 
 			End If
-			
-			#If B4A
-			If OversizeMode = True Then
-				Dim clvitem1 As CLVItem = xclv_main.GetRawListItem(m_CurrentIndex)
-				Dim tst As Double = Min(clvitem1.Offset + clvitem1.Panel.Width - mBase.Width,xclv_main.sv.ScrollViewOffsetX)
 				
-				If x < g_x And xclv_main.sv.ScrollViewOffsetX >= clvitem1.Offset + clvitem1.Size Then
-					
-				Else
-					xclv_main.sv.ScrollViewOffsetX = Min(IIf(x > g_x,xclv_main.sv.ScrollViewOffsetX,tst),clvitem1.Offset + clvitem1.Size)
-				End If
-				
-'				If x > g_x And  Then
-'					
-'					Else
-'						
-'				End If
-				
-				'xclv_main.sv.ScrollViewOffsetX = Min(IIf(x > g_x,xclv_main.sv.ScrollViewOffsetX,tst),clvitem1.Offset + clvitem1.Size)
-			End If
-			#End If
 		Case 1
+			
 			TouchEndEvent
 			ismoving = False
 			isfirstmove = False
-			#If B4A
-			If OversizeMode = False Then
-				#End If
+
+			If m_Orientation = "Horizontal" Then
+				If ((DateTime.Now-g_ms)<300) And (Abs(X - g_x) > (1dip)) Then
+
+					g_dv =1dip
+
+					If X < g_x Then g_ad = 1
+
+				End If
+			Else
+				If ((DateTime.Now-g_ms)<300)  And (Abs(y - g_y) > (1dip)) Then
+					g_dv =1dip
+				
+					If y < g_y Then g_ad = 1
+	
+				End If
+			End If
+
+			For i = 0 To xclv_main.Size -1
 				If m_Orientation = "Horizontal" Then
-					If ((DateTime.Now-g_ms)<300) And (Abs(X - g_x) > (1dip)) Then
+					If (((i+1)*mBase.Width) - xclv_main.sv.ScrollViewOffsetX) > (g_dv) Then
 
-						g_dv =1dip
-
-						If X < g_x Then g_ad = 1
-
+						If (i+g_ad) > (xclv_main.Size -1) Or xclv_main.sv.ScrollViewOffsetX <= 0 Then
+							CheckCarousel
+							Return False
+						End If
+						#If B4A or B4J
+						If isNumberOneCloserToZero(g_x - x,g_y - y) = False Then
+							xclv_main.ScrollToItem(m_CurrentIndex)
+							Return True
+						End If
+						xclv_main.ScrollToItem(i+g_ad)
+						If m_CurrentIndex <> (i+g_ad) Then PageChangedEvent(i+g_ad,True)
+						#Else If B4I
+						If m_CurrentIndex <> (i+g_ad) Then PageChangedEvent(i+g_ad,True)
+						#End If
+						Return True
 					End If
 				Else
-					If ((DateTime.Now-g_ms)<300)  And (Abs(y - g_y) > (1dip)) Then
-						g_dv =1dip
-				
-						If y < g_y Then g_ad = 1
-	
-					End If
-				End If
-
-				For i = 0 To xclv_main.Size -1
-					If m_Orientation = "Horizontal" Then
-				
-						If (((i+1)*xclv_main.GetBase.Width) - xclv_main.sv.ScrollViewOffsetX) > (g_dv) Then
-
-							If (i+g_ad) > (xclv_main.Size -1) Or xclv_main.sv.ScrollViewOffsetX <= 0 Then
-								CheckCarousel
-								Return False
-							End If
-						#If B4A or B4J
-							If isNumberOneCloserToZero(g_x - x,g_y - y) = False Then
-								xclv_main.ScrollToItem(m_CurrentIndex)
-								Return True
-							End If
-							xclv_main.ScrollToItem(i+g_ad)
-							If m_CurrentIndex <> (i+g_ad) Then PageChangedEvent(i+g_ad,True)
-						#End If
-							Return True
-						End If
-					Else
 					
-						If (((i+1)*xclv_main.GetBase.Height) - xclv_main.sv.ScrollViewOffsetY) > (g_dv) Then
+					If (((i+1)*mBase.Height) - xclv_main.sv.ScrollViewOffsetY) > (g_dv) Then
 						
-							If (i+g_ad) > xclv_main.Size-1 Or  xclv_main.sv.ScrollViewOffsetY <= 0 Then
-								CheckCarousel
-								Return False
-							End If
+						If (i+g_ad) > xclv_main.Size-1 Or  xclv_main.sv.ScrollViewOffsetY <= 0 Then
+							CheckCarousel
+							Return False
+						End If
 						#If B4A or B4J
-							If isNumberOneCloserToZero(g_y - y,g_x - x) = False Then
-								xclv_main.ScrollToItem(m_CurrentIndex)
-								Return True
-							End If
-							xclv_main.ScrollToItem(i+g_ad)
-							If m_CurrentIndex <> (i+g_ad) Then PageChangedEvent(i+g_ad,True)
-						#End if
+						If isNumberOneCloserToZero(g_y - y,g_x - x) = False Then
+							xclv_main.ScrollToItem(m_CurrentIndex)
 							Return True
 						End If
+						xclv_main.ScrollToItem(i+g_ad)
+						If m_CurrentIndex <> (i+g_ad) Then PageChangedEvent(i+g_ad,True)
+						#Else If B4I
+						If m_CurrentIndex <> (i+g_ad) Then PageChangedEvent(i+g_ad,True)
+						#End if
+						Return True
 					End If
-				Next
-				#If B4A
-			Else
-				
-				Dim clvitem1 As CLVItem = xclv_main.GetRawListItem(m_CurrentIndex)
-				'Dim tst As Double = Min(clvitem1.Offset + clvitem1.Panel.Width - mBase.Width,xclv_main.sv.ScrollViewOffsetX)
-				
-				If x < g_x And xclv_main.sv.ScrollViewOffsetX >= clvitem1.Offset + clvitem1.Panel.Width - mBase.Width Then
-					m_CurrentIndex = m_CurrentIndex +1
-					xclv_main.ScrollToItem(m_CurrentIndex)
-				else If x > g_x And xclv_main.sv.ScrollViewOffsetX <= clvitem1.Offset And (m_CurrentIndex-1) >= 0 Then
-					m_CurrentIndex = m_CurrentIndex -1
-					xclv_main.ScrollToItem(m_CurrentIndex)
 				End If
-				
-				Return True
-			End If
-			#End If
+			Next
 	End Select
 	Return False
 End Sub
@@ -856,18 +914,87 @@ End Sub
 #If B4A
 
 Private Sub xpnl_PageArea2_Touch(ViewTag As Object, Action As Int, X As Float, y As Float, MotionEvent As Object) As Boolean
-	If g_isScrollEnabled = False Then Return True
+	If g_isScrollEnabled = False Or (m_AllowBack = False And m_AllowNext = False) Then Return True
+	'Log(X)
+
+	If m_AllowNext = False Or m_AllowBack = False Then
+		
+		Dim SkipCheck As Boolean = False
+		If Action = 1 Then
+			isfirstmove = False
+			SkipCheck = True
+		End If
+		
+		If isfirstmove = False And SkipCheck = False Then
+			'xclv_main.sv.ScrollViewOffsetX = m_MaxOffset
+			ff(X,y)
+			'Log("isfirstmove")
+			Return True
+		End If
+		
+		If m_AllowNext = False And x < g_x Then
+			xclv_main.sv.ScrollViewOffsetX = m_MaxOffset
+			'Log("xclv_main.sv.ScrollViewOffsetX = m_MaxOffset")
+			Return True
+		else If m_AllowBack = False And x > g_x Then
+			xclv_main.sv.ScrollViewOffsetX = m_MaxOffset
+			'Log("xclv_main.sv.ScrollViewOffsetX = m_MaxOffset")
+			Return True
+		End If
+		
+	End If
+
+'Log("luuul")
+	
+	
 	Return HandleTouch(Action,x,y)
 End Sub
 
 #Else If B4I
 
+Private Sub CheckAllow(Action As Int,x As Float,y As Float) As Boolean
+	If m_AllowNext = False Or m_AllowBack = False Then
+		
+		Dim SkipCheck As Boolean = False
+		If Action = 3 Then
+			isfirstmove = False
+			SkipCheck = True
+		End If
+		
+		If isfirstmove = False And SkipCheck = False Then
+			'xclv_main.sv.ScrollViewOffsetX = m_MaxOffset
+			ff(X,y)
+			'Log("isfirstmove")
+			Return True
+		End If
+		
+		If m_AllowNext = False And x < g_x Then
+			xclv_main.sv.As(ScrollView).ScrollEnabled = False
+			xclv_main.sv.ScrollViewOffsetX = m_MaxOffset
+			'Log("xclv_main.sv.ScrollViewOffsetX = m_MaxOffset")
+			xclv_main.sv.As(ScrollView).ScrollEnabled = True
+			Return True
+		else If m_AllowBack = False And x > g_x Then
+			xclv_main.sv.As(ScrollView).ScrollEnabled = False
+			xclv_main.sv.ScrollViewOffsetX = m_MaxOffset
+			'Log("xclv_main.sv.ScrollViewOffsetX = m_MaxOffset")
+			xclv_main.sv.As(ScrollView).ScrollEnabled = True
+			Return True
+		End If
+		
+	End If
+	Return False
+End Sub
+
 Private Sub uigesture_longpress(state As Int,numtouch As Int, Numtaps As Int, x As Float, y As Float, obj As Object)
 
-	If g_isScrollEnabled = False Then Return
+	If g_isScrollEnabled = False Or (m_AllowBack = False And m_AllowNext = False) Then Return
+	
+	If CheckAllow(state,x,y) Then Return
+	
 	If state = 1 Then'tmp.STATE_Begin Then
 		HandleTouch(2,x,y)
-	'	Log("longpress")
+		'	Log("longpress")
 		'TouchEndEvent
 	End If
 
@@ -875,15 +1002,17 @@ End Sub
 
 Private Sub uigesture_pan(state As Int,x As Float, y As Float, obj As Object)
 
-
-	If g_isScrollEnabled = False Then Return
+	If g_isScrollEnabled = False Or (m_AllowBack = False And m_AllowNext = False) Then Return
+	
+	If CheckAllow(state,x,y) Then Return
+	
 	'Log("att.X: " & att.X)
 	Select state
 		Case 2 'STATE_Changed
 			'TouchBeginEvent
 			HandleTouch(2,x,y)
 			'Log("pan")
-		Case 3 'STATE_End
+		Case 3 'STATE_End			
 			HandleTouch(1,x,y)
 	End Select
 	
@@ -918,15 +1047,15 @@ End Sub
 
 #If B4A or B4I
 Private Sub xclv_main_VisibleRangeChanged (FirstIndex As Int, LastIndex As Int)
-	#IF B4I
-	If m_Ignore = False Then
-	If FirstIndex < m_CurrentIndex Then
-		PageChangedEvent(LastIndex,False)
-	Else
-		PageChangedEvent(FirstIndex,False)
-	End If
-	End If
-	#End If
+'	#IF B4I
+'	If m_Ignore = False Then
+'		If FirstIndex < m_CurrentIndex Then
+'			PageChangedEvent(LastIndex,False)
+'		Else
+'			PageChangedEvent(FirstIndex,False)
+'		End If
+'	End If
+'	#End If
 	
 	If m_LazyLoading = False Or m_IgnoreLazyLoading = True Then Return
 	
@@ -938,11 +1067,10 @@ Private Sub xclv_main_VisibleRangeChanged (FirstIndex As Int, LastIndex As Int)
 	
 	'Log(xclv_main.FindIndexFromOffset(IIf(m_orientation = "Vertical",xclv_main.sv.ScrollViewOffsety,xclv_main.sv.ScrollViewOffsetx)).As(Int))
 	
-	If lazyloading_index = m_CurrentIndex And xclv_main.GetPanel(m_CurrentIndex).NumberOfViews = 0 Then lazyloading_index = -1
+	'If lazyloading_index = m_CurrentIndex And xclv_main.GetPanel(m_CurrentIndex).NumberOfViews = 0 Then lazyloading_index = -1
 	
-	If lazyloading_index <> m_CurrentIndex Then
-	'If lazyloading_index <> xclv_main.FindIndexFromOffset(IIf(m_orientation = "Vertical",xclv_main.sv.ScrollViewOffsety,xclv_main.sv.ScrollViewOffsetx)) And IIf(m_orientation = "Vertical",xclv_main.sv.ScrollViewOffsety,xclv_main.sv.ScrollViewOffsetx).As(Int) = IIf(m_orientation = "Vertical",mBase.Height,mBase.Width) * xclv_main.FindIndexFromOffset(IIf(m_orientation = "Vertical",xclv_main.sv.ScrollViewOffsety,xclv_main.sv.ScrollViewOffsetx)).As(Int) Then
-	If isLazyLoadingReady = True Then	lazyloading_index = xclv_main.FindIndexFromOffset(IIf(m_Orientation = "Vertical",xclv_main.sv.ScrollViewOffsety,xclv_main.sv.ScrollViewOffsetx))
+	'If lazyloading_index <> m_CurrentIndex Then
+	'If isLazyLoadingReady = True Then	lazyloading_index = xclv_main.FindIndexFromOffset(IIf(m_Orientation = "Vertical",xclv_main.sv.ScrollViewOffsety,xclv_main.sv.ScrollViewOffsetx))
 	For i = 0 To xclv_main.Size - 1
 		Dim p As B4XView = xclv_main.GetPanel(i)
 		If i > FirstIndex - m_LazyLoadingExtraSize And i < LastIndex + m_LazyLoadingExtraSize Then
@@ -951,19 +1079,25 @@ Private Sub xclv_main_VisibleRangeChanged (FirstIndex As Int, LastIndex As Int)
 				LazyLoadingAddContent(p,xclv_main.GetValue(i))
 			End If
 		Else
-			'not visible
-			If p.NumberOfViews > 0 Then
-				p.RemoveAllViews '<--- remove the layout
+			
+			If i > m_CurrentIndex - m_LazyLoadingExtraSize And i < m_CurrentIndex + m_LazyLoadingExtraSize Then
+				
+				Else
+				'not visible
+				If p.NumberOfViews > 0 Then
+					p.RemoveAllViews '<--- remove the layout
+				End If
 			End If
+			
 		End If
 	Next
-	End If
+	'End If
 End Sub
 
 #End If
 
 Public Sub ResetLazyloadingIndex
-	lazyloading_index = -1
+	'lazyloading_index = -1
 End Sub
 'If True, the Lazy Loading event is not triggered
 Public Sub setIgnoreLazyLoading(Ignore As Boolean)
@@ -975,20 +1109,27 @@ End Sub
 Private Sub xclv_main_ScrollChanged (Offset As Int)
 	
 '	#If B4I
-'	
-'	If m_Offset > Offset Then
-'		PageChangedEvent(xclv_main.LastVisibleIndex,False)
-'	Else
-'		PageChangedEvent(xclv_main.FirstVisibleIndex,False)
+'	If m_AllowNext = False And Offset > m_MaxOffset Then
+'		xclv_main.sv.ScrollViewOffsetX = m_MaxOffset
+'		Return
 '	End If
-'	
-'	#Else
-	If xclv_main.FindIndexFromOffset(Offset) <> m_CurrentIndex And Offset = IIf(m_Orientation = "Vertical",mBase.Height,mBase.Width) * xclv_main.FindIndexFromOffset(Offset) Then
+'	If m_AllowBack = False And Offset < m_MaxOffset Then
+'		xclv_main.sv.ScrollViewOffsetX = m_MaxOffset
+'		Return
+'	End If
+'	#End If
+	
+'	#If B4I
+'	If m_Orientation = "Horizontal" Then
+'		xclv_main.sv.ScrollViewOffsetY = 0
+'	else If m_Orientation = "Vertical" Then
+'		xclv_main.sv.ScrollViewOffsetX = 0
+'	End If
+'	#End If
+	If xclv_main.FindIndexFromOffset(Offset) <> m_CurrentIndex And Offset = IIf(m_Orientation = "Vertical",mBase.Height,mBase.Width) * xclv_main.FindIndexFromOffset(Offset) And m_Ignore = False Then
 		PageChangedEvent(xclv_main.FindIndexFromOffset(Offset),False)
 	End If
-	'#End If
-	
-	
+
 	If xui.SubExists(mCallBack, mEventName & "_ScrollChanged", 1) Then
 		CallSub2(mCallBack, mEventName & "_ScrollChanged",Offset)
 	End If
@@ -1032,12 +1173,20 @@ Private Sub PageChangedEvent(index As Int,delayed As Boolean)
 	If g_ignorepagechangeevent = False And xui.SubExists(mCallBack, mEventName & "_PageChange", 1) Then
 		CallSub2(mCallBack, mEventName & "_PageChange",index)
 	End If
-	
+	#If B4A or B4I
+	m_MaxOffset = xclv_main.GetRawListItem(index).Offset
+	#End If
 	If delayed = True Then Sleep(300)
-	
+		#If B4A or B4I
+	m_MaxOffset = xclv_main.GetRawListItem(index).Offset
+	#End If
 	If g_ignorepagechangedevent = False And xui.SubExists(mCallBack, mEventName & "_PageChanged", 1) Then
 		CallSub2(mCallBack, mEventName & "_PageChanged",index)
 	End If
+	If g_ignorepagechangedevent = False And xui.SubExists(mCallBack, mEventName & "_PageChanged2", 2) Then
+		CallSub3(mCallBack, mEventName & "_PageChanged2",index,OldIndex)
+	End If
+	OldIndex = index
 End Sub
 #IF B4A or B4I
 Private Sub TouchBeginEvent

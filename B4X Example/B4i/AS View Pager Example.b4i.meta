@@ -7,6 +7,6 @@ ModuleBreakpoints2=
 ModuleClosedNodes0=4
 ModuleClosedNodes1=
 ModuleClosedNodes2=
-NavigationStack=B4XMainPage,Class_Globals,5,0,Visual Designer,frm_main.bil,-100,6,B4XMainPage,B4XPage_Created,15,6,ASViewPager,HandleTouch,717,0,ASViewPager,uigesture_longpress,862,6,ASViewPager,uigesture_pan,879,6,ASViewPager,ini_xclv,271,0,ASViewPager,CheckLoadingPanelVisiblity,400,0,ASViewPager,LoadingPanelHandling,396,0,ASViewPager,Base_Resize,324,4
+NavigationStack=B4XMainPage,B4XPage_Created,34,6,B4XMainPage,ASViewPager1_PageChanged2,71,0,ASViewPager,AllowNext,577,6,ASViewPager,ff,862,0,ASViewPager,HandleTouch,860,0,B4XMainPage,ASViewPager1_PageChanged,46,0,B4XMainPage,ASViewPager1_PageChange,75,4
 SelectedBuild=0
 VisibleModules=2,1
